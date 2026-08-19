@@ -12,6 +12,13 @@
 
 LOG_MODULE_REGISTER(fake_sensor);
 
+struct fake_sensor_data {
+	bool attr_valid;
+	enum sensor_channel attr_chan;
+	enum sensor_attribute attr;
+	struct sensor_value attr_value;
+};
+
 static int init(const struct device *dev)
 {
 	ARG_UNUSED(dev);
@@ -22,8 +29,15 @@ static int init(const struct device *dev)
 static int attr_set(const struct device *dev, enum sensor_channel chan, enum sensor_attribute attr,
 		    const struct sensor_value *val)
 {
+	struct fake_sensor_data *data = dev->data;
+
 	LOG_DBG("[%s] dev: %p, chan: %d, attr: %d, val1: %d, val2: %d", __func__, dev, chan, attr,
 		val->val1, val->val2);
+
+	data->attr_valid = true;
+	data->attr_chan = chan;
+	data->attr = attr;
+	data->attr_value = *val;
 
 	return 0;
 }
@@ -31,7 +45,14 @@ static int attr_set(const struct device *dev, enum sensor_channel chan, enum sen
 static int attr_get(const struct device *dev, enum sensor_channel chan, enum sensor_attribute attr,
 		    struct sensor_value *val)
 {
+	const struct fake_sensor_data *data = dev->data;
+
 	LOG_DBG("[%s] dev: %p, chan: %d, attr: %d", __func__, dev, chan, attr);
+
+	if (data->attr_valid && data->attr_chan == chan && data->attr == attr) {
+		*val = data->attr_value;
+		return 0;
+	}
 
 	val->val1 = chan;
 	val->val2 = attr * 100000;
@@ -90,7 +111,8 @@ static DEVICE_API(sensor, api) = {
 };
 
 #define VND_SENSOR_INIT(n)                                                                         \
-	SENSOR_DEVICE_DT_INST_DEFINE(n, init, NULL, NULL, NULL, POST_KERNEL,                       \
+	static struct fake_sensor_data fake_sensor_data_##n;                                       \
+	SENSOR_DEVICE_DT_INST_DEFINE(n, init, NULL, &fake_sensor_data_##n, NULL, POST_KERNEL,      \
 				     CONFIG_SENSOR_INIT_PRIORITY, &api);
 
 DT_INST_FOREACH_STATUS_OKAY(VND_SENSOR_INIT)

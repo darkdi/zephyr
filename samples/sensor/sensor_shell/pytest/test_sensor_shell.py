@@ -3,6 +3,7 @@
 
 import logging
 
+import pytest
 from twister_harness import Shell
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,36 @@ def test_sensor_shell_attr_set(shell: Shell):
     assert any([expected_line in line for line in lines]), 'expected response not found'
 
     logger.info('response is valid')
+
+
+@pytest.mark.parametrize(
+    ('value', 'expected'),
+    [
+        ('50.000001', '50.000001'),
+        ('50.005', '50.005000'),
+        ('50.08', '50.080000'),
+        ('50.0', '50.000000'),
+        ('-50.005', '-50.005000'),
+    ],
+)
+def test_sensor_shell_attr_set_decimal(shell: Shell, value: str, expected: str):
+    shell.wait_for_prompt()
+    lines = shell.exec_command(f'sensor attr_set sensor@0 co2 sampling_frequency {value}')
+    expected_line = f'sensor@0 channel=co2, attr=sampling_frequency set to value={value}'
+    assert any([expected_line in line for line in lines]), 'expected response not found'
+
+    shell.wait_for_prompt()
+    lines = shell.exec_command('sensor attr_get sensor@0 co2 sampling_frequency')
+    expected_line = f'sensor@0(channel=co2, attr=sampling_frequency) value={expected}'
+    assert any([expected_line in line for line in lines]), 'parsed sensor value is incorrect'
+
+
+def test_sensor_shell_attr_set_too_precise(shell: Shell):
+    shell.wait_for_prompt()
+    value = '50.0000001'
+    lines = shell.exec_command(f'sensor attr_set sensor@0 co2 sampling_frequency {value}')
+    expected_line = f"Sensor value '{value}' invalid"
+    assert any([expected_line in line for line in lines]), 'expected invalid value error not found'
 
 
 def test_sensor_shell_trig(shell: Shell):

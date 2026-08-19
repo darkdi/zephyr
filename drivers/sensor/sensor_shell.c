@@ -317,22 +317,31 @@ static int parse_sensor_value(const char *val_str, struct sensor_value *out)
 		return -EINVAL;
 	}
 	out->val1 = (int32_t)value;
+	out->val2 = 0;
 
 	if (decimal_pos == NULL) {
 		return 0;
 	}
 
-	/* Parse the decimal portion */
-	value = strtoul(decimal_pos + 1, &endptr, 0);
-	if (*endptr != '\0') {
+	/* Parse up to six decimal digits into the micro-unit field. */
+	const char *fraction = decimal_pos + 1;
+	size_t digits = strlen(fraction);
+
+	if (digits == 0 || digits > 6) {
 		return -EINVAL;
 	}
-	while (value < 100000) {
+
+	value = 0;
+	for (size_t i = 0; i < digits; i++) {
+		if (!isdigit((unsigned char)fraction[i])) {
+			return -EINVAL;
+		}
+		value = value * 10 + (fraction[i] - '0');
+	}
+	for (; digits < 6; digits++) {
 		value *= 10;
 	}
-	if (value > INT32_C(999999)) {
-		return -EINVAL;
-	}
+
 	out->val2 = (int32_t)value;
 	if (is_negative) {
 		out->val2 *= -1;
