@@ -213,7 +213,8 @@ static int mcux_igpio_configure(const struct device *dev,
 	pin_cfg.pin_ctrl_flags = reg;
 	pinctrl_configure_pins(&pin_cfg, 1, PINCTRL_REG_NONE);
 
-	if (((flags & GPIO_INPUT) != 0) && ((flags & GPIO_OUTPUT) != 0)) {
+	if ((flags & (GPIO_INPUT | GPIO_OUTPUT)) == (GPIO_INPUT | GPIO_OUTPUT) &&
+	    (flags & GPIO_OPEN_DRAIN) != GPIO_OPEN_DRAIN) {
 		return -ENOTSUP;
 	}
 
